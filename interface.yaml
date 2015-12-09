@@ -1,0 +1,6 @@
+name: tls
+summary: |
+  A Transport Layer Security (TLS) charm layer that enables peers to exchange
+  certifcates.
+version: 1
+repo: https://github.com/mbruzek/interface-tls
