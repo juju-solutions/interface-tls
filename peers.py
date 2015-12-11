@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from charmhelpers.core import hookenv
 from charmhelpers.core.hookenv import is_leader
 from charms.reactive import hook
@@ -8,8 +6,7 @@ from charms.reactive import scopes
 
 
 class TlsPeer(RelationBase):
-    '''The peer class uses the unit scope to communicate with the
-    individual units.'''
+    '''This class uses the unit scope to communicate with individual peers.'''
     scope = scopes.UNIT
 
     @hook('{peers:tls}-relation-joined')
@@ -19,6 +16,21 @@ class TlsPeer(RelationBase):
         conv = self.conversation()
         # Set the start state here for the layers to handle the logic.
         conv.set_state('create certificate signing request')
+
+    @hook('{peers:tls}-relation-changed')
+    def changed(self):
+        '''Only the leader should change the state to sign the request. '''
+        # Get the conversation scoped to the unit name.
+        conv = self.conversation()
+        # Normaly we do not get the conversation this way, but for the peer
+        # relation we want to get the value for this unit's conversation only.
+        if is_leader():
+            if conv.get_remote('csr'):
+                conv.set_state('sign certificate signing request')
+        else:
+            key = '{0}_signed_certificate'.format(hookenv.local_unit())
+            if conv.get_remote(key):
+                conv.set_state('signed certificate available')
 
     def set_csr(self, csr):
         '''Set the certificate signing request (CSR) on the relation data.'''
@@ -52,21 +64,8 @@ class TlsPeer(RelationBase):
         conv = self.conversation(unit_name)
         # Remove the sign
         conv.remove_state('sign certificate signing request')
-        conv.set_remote(data={'signed_certificate': certificate})
-
-    @hook('{peers:tls}-relation-changed')
-    def changed(self):
-        '''Only the leader should change the state to sign the request. '''
-        # Get the conversation scoped to the unit name.
-        conv = self.conversation()
-        # Normaly we do not get the conversation this way, but for the peer
-        # relation we want to get the value for this unit's conversation only.
-        if is_leader():
-            if conv.get_remote('csr'):
-                conv.set_state('sign certificate signing request')
-        else:
-            if conv.get_remote('signed_certificate'):
-                conv.set_state('signed certificate available')
+        key = '{0}_signed_certificate'.format(unit_name)
+        conv.set_remote(data={key: certificate})
 
     def get_signed_cert(self):
         '''Return the signed certificate from the relation data.'''
@@ -74,15 +73,5 @@ class TlsPeer(RelationBase):
         conv = self.conversation()
         # Normaly we do not get the conversation this way, but for the peer
         # relation we want to get the value for this unit's conversation only.
-        return conv.get_remote('signed_certificate')
-
-    @hook('{peers:tls}-relation-{broken,departed}')
-    def broken(self):
-        '''Can peer relations even be broken?'''
-        unit = hookenv.remote_unit()
-        print(unit)
-        print('{relation_name}.available')
-        state = '{0}.available'.format(unit)
-        print(state)
-        # Get the unit name here and remove that state.
-        self.remove_state(state)
+        key = '{0}_signed_certificate'.format(hookenv.local_unit())
+        return conv.get_remote(key)
