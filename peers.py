@@ -30,7 +30,7 @@ class TlsPeer(RelationBase):
         # Remove the old state.
         conv.remove_state('create certificate signing request')
         # Set the value on the relation.
-        conv.set_remote({'csr': csr})
+        conv.set_remote(data={'csr': csr})
 
     def get_csr_map(self):
         '''Return a map of name and csr for each unit requesting a signed cert.
@@ -52,7 +52,7 @@ class TlsPeer(RelationBase):
         conv = self.conversation(unit_name)
         # Remove the sign
         conv.remove_state('sign certificate signing request')
-        conv.set_remote({'signed_certificate': certificate})
+        conv.set_remote(data={'signed_certificate': certificate})
 
     @hook('{peers:tls}-relation-changed')
     def changed(self):
